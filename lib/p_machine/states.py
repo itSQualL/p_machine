@@ -1,11 +1,16 @@
-import machine
-import network
-
+from machine import ADC
+from machine import Pin
+from network import STA_IF
+from network import WLAN
 from umqtt.simple import MQTTClient
 
+NETWORK_CONFIG = {
+    "ssid": "",
+    "password": "",
+}
+
 MQTT_CONFIG = {
-    "broker": '192.168.4.1',
-    # "client_id": 'esp8266_' + ubinascii.hexlify(machine.unique_id()).decode('utf-8'),
+    "broker": '192.168.100.5',
     "client_id": 'p_t_1',
     "topic": 'engine/pressure_transducers',
 }
@@ -24,12 +29,12 @@ class AbstractState:
 class ConnectState(AbstractState):
     def run(self):
         print("Starting connect...")
-        sta_if = network.WLAN(network.STA_IF)
+        sta_if = WLAN(STA_IF)
 
         if not sta_if.isconnected():
             print('connecting to network...')
             sta_if.active(True)
-            sta_if.connect('parcelar', 'parcelar')
+            sta_if.connect(NETWORK_CONFIG['ssid'], NETWORK_CONFIG['password'])
 
             while not sta_if.isconnected():
                 pass
@@ -49,7 +54,16 @@ class MeasureState(AbstractState):
         print("Starting measure...")
         state = 0
 
-        adc = machine.ADC(0)
+        # Create ADC object on pin 32
+        adc = ADC(Pin(32))
+
+        # set 11dB input attentuation (voltage range roughly 0.0v - 3.6v)
+        adc.atten(ADC.ATTN_11DB)
+
+        # set 9 bit return values (returned range 0-511)
+        adc.width(ADC.WIDTH_9BIT)
+
+        # read value
         self.state = adc.read()
 
     def next(self):
